@@ -21,7 +21,22 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          
+      - name: get Tag ver
+        id: get_tag_ver
+        run: |
+          echo "$(git tag --sort=creatordate | tail -n 1)" > CUR_TAG
+          echo ::set-output name=cur_tag::$(cat CUR_TAG)
+          echo "最新タグ：$(cat CUR_TAG)"
+          echo "$(git tag --sort=creatordate | tail -n 2 | head -n1)" > PRE_TAG
+          echo ::set-output name=pre_tag::$(cat PRE_TAG)
+          echo "一つ前のタグ：$(cat PRE_TAG)"
+      - name: release diff get
+        id: commit_diff
+        run: |
+          echo -e ":clock10: release date: $(TZ=Asia/Tokyo date +%Y-%m-%d-%H%M%S)\n" > DIFF_COMMIT
+          echo "$(git log --merges --first-parent --reverse --pretty=format:"* %b" ${{ steps.get_tag_ver.outputs.pre_tag }}..${{ steps.get_tag_ver.outputs.cur_tag }})" >> DIFF_COMMIT
+          echo "差分：$(cat DIFF_COMMIT)"
+          echo ::set-output name=diffCommit::$(cat DIFF_COMMIT)
       - name: Archive
         run: |
           zip -r ${{ steps.version.outputs.filename }}.zip ./ -x "*.git*"
