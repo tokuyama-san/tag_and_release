@@ -34,7 +34,7 @@ jobs:
         id: commit_diff
         run: |
           echo -e ":clock10: release date: $(TZ=Asia/Tokyo date +%Y-%m-%d-%H%M%S)\n" > DIFF_COMMIT
-          echo "$(git log --merges --first-parent --reverse --pretty=format:"* %b" ${{ steps.get_tag_ver.outputs.pre_tag }}..${{ steps.get_tag_ver.outputs.cur_tag }})" >> DIFF_COMMIT
+          echo "$(git log --merges --reverse --pretty=format:"* %b" ${{ steps.get_tag_ver.outputs.pre_tag }}..${{ steps.get_tag_ver.outputs.cur_tag }})" >> DIFF_COMMIT
           echo "差分：$(cat DIFF_COMMIT)"
           echo ::set-output name=diffCommit::$(cat DIFF_COMMIT)
       - name: Archive
@@ -48,6 +48,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
+          body_path: ./DIFF_COMMIT
           draft: false
           prerelease: false
       - name: Upload Release Asset
