@@ -48,6 +48,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
+          body_path: ./DIFF_COMMIT
           draft: false
           prerelease: false
       - name: Upload Release Asset
