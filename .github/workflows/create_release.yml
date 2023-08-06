@@ -8,18 +8,55 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Set version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.repository }} | sed -e "s#.*/##")
+          VERSION=$(echo ${{ github.ref }} | sed -e "s#refs/tags/##g")
+          echo ::set-output name=version::$VERSION
+          echo ::set-output name=filename::$REPOSITORY-$VERSION
+          echo "Version $VERSION"
       - name: Checkout main branch
         uses: actions/checkout@v3
         with:
           ref: main
           fetch-depth: 0
-      - name: Check tagged branch
+      - name: get Tag ver
+        id: get_tag_ver
         run: |
-          BRANCHS=$(git branch --contains ${{ github.ref_name }})
-          set -- $BRANCHS
-          for BRANCH in $BRANCHS ; do
-            if [[ "$BRANCH" == "main" ]]; then
-              exit 0
-            fi
-          done
-          exit 1
+          echo "$(git tag --sort=creatordate | tail -n 1)" > CUR_TAG
+          echo ::set-output name=cur_tag::$(cat CUR_TAG)
+          echo "最新タグ：$(cat CUR_TAG)"
+          echo "$(git tag --sort=creatordate | tail -n 2 | head -n1)" > PRE_TAG
+          echo ::set-output name=pre_tag::$(cat PRE_TAG)
+          echo "一つ前のタグ：$(cat PRE_TAG)"
+      - name: release diff get
+        id: commit_diff
+        run: |
+          echo -e ":clock10: release date: $(TZ=Asia/Tokyo date +%Y-%m-%d-%H%M%S)\n" > DIFF_COMMIT
+          echo "$(git log --merges --first-parent --reverse --pretty=format:"* %b" ${{ steps.get_tag_ver.outputs.pre_tag }}..${{ steps.get_tag_ver.outputs.cur_tag }})" >> DIFF_COMMIT
+          echo "差分：$(cat DIFF_COMMIT)"
+          echo ::set-output name=diffCommit::$(cat DIFF_COMMIT)
+      - name: Archive
+        run: |
+          zip -r ${{ steps.version.outputs.filename }}.zip ./ -x "*.git*"
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ steps.version.outputs.filename }}.zip
+          asset_name: ${{ steps.version.outputs.filename }}.zip
+          asset_content_type: application/zip
